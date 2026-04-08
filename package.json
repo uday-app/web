@@ -3,12 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
+        "dev": "next dev",
+        "build": "next build",
+        "start": "next start -p ${PORT:-8000} -H 0.0.0.0",
+        "lint": "eslint",
     "lint:fix": "eslint --fix"
-  },
+    },
   "dependencies": {
     "@heroui/react": "^3.0.2",
     "@heroui/styles": "^3.0.2",
