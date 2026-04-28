@@ -7,3 +7,14 @@
   --font-sans: "font", sans-serif;
   --font-mono: "monospace", monospace;
 }
+
+@layer components {
+  .drawer__handle {
+    @apply absolute inset-x-0 -top-3;
+
+    /* The handle bar */
+    & > [data-slot="drawer-handle-bar"] {
+      @apply w-16 sm:hidden;
+    }
+  }
+}

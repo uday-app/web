@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Provider } from "@/ui/provider";
 import { SearchBar } from "@/ui/bar";
+import { Footer } from "@/ui/footer";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -63,11 +64,12 @@ export default function RootLayout({
   modal: React.ReactNode;
 }>) {
   return (
-     <html suppressHydrationWarning className={inter.variable} lang="en">
+    <html suppressHydrationWarning className={inter.variable} lang="en">
       <body className="flex min-h-screen flex-col font-sans">
         <Provider>
           {children}
           {modal}
+          <Footer />
           <SearchBar />
         </Provider>
       </body>
