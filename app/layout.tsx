@@ -65,7 +65,7 @@ export default function RootLayout({
 }>) {
   return (
     <html suppressHydrationWarning className={inter.variable} lang="en">
-      <body className="flex min-h-screen flex-col font-sans">
+      <body className="flex min-h-dvh flex-col font-sans">
         <Provider>
           {children}
           {modal}

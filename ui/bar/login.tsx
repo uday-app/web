@@ -1,7 +1,7 @@
 "use client";
 
+import Image from "next/image";
 import {
-  Avatar,
   Button,
   Description,
   Drawer,
@@ -10,10 +10,12 @@ import {
   useMediaQuery,
   useOverlayState,
 } from "@heroui/react";
-import { Icon } from "@iconify/react";
 import { useRouter } from "next/navigation";
+import { useShallow } from "zustand/react/shallow";
 
 import { useAuthStore } from "@/store/auth";
+import Icon from "@/utils/iconify";
+import { IconUser } from "nucleo-glass";
 
 const menuItems = [
   {
@@ -52,7 +54,24 @@ export function UserMenu() {
   const router = useRouter();
   const state = useOverlayState();
   const isDesktop = useMediaQuery("(min-width: 768px)");
-  const { user, logout } = useAuthStore();
+  const { isSigningOut, signOut, user } = useAuthStore(
+    useShallow((auth) => ({
+      isSigningOut: auth.isSigningOut,
+      signOut: auth.signOut,
+      user: auth.user,
+    })),
+  );
+
+  async function handleSignOut() {
+    const result = await signOut();
+
+    if (result.error) {
+      return;
+    }
+
+    state.close();
+    router.refresh();
+  }
 
   return (
     <>
@@ -63,86 +82,94 @@ export function UserMenu() {
         variant="ghost"
         onPress={!user ? () => router.push("/login") : state.open}
       >
-        <Icon className="size-6" icon="solar:user-bold-duotone" />
+        {user ? (
+          <Image
+            alt={user?.name ?? "User"}
+            src={
+              user?.avatarSrc ??
+              `https://avatar.vercel.sh/vercel.svg?text=${user?.name?.slice(0, 1).toUpperCase()}`
+            }
+            width={24}
+            height={24}
+            className="rounded-full"
+          />
+        ) : (
+          <IconUser className="size-5.5" />
+        )}
       </Button>
 
-      <Drawer isOpen={state.isOpen} onOpenChange={state.setOpen}>
-        <Drawer.Backdrop>
-          <Drawer.Content placement={isDesktop ? "right" : "bottom"}>
-            <Drawer.Dialog
-              className={isDesktop ? "w-85 rounded-l-2xl p-4" : ""}
-            >
-              <Drawer.Handle />
-              <Drawer.Header>
-                <div className="flex items-center gap-3">
-                  <Avatar size="sm">
-                    <Avatar.Image
-                      alt={user?.name ?? "User"}
-                      src={
-                        user?.avatarSrc ??
-                        "https://img.heroui.chat/image/avatar?w=400&h=400&u=1"
-                      }
-                    />
-                    <Avatar.Fallback>
-                      {user?.name?.slice(0, 2).toUpperCase() ?? "SJ"}
-                    </Avatar.Fallback>
-                  </Avatar>
-                  <div className="flex flex-col">
-                    <p className="text-sm font-medium">
-                      {user?.name ?? "Sarah Johnson"}
-                    </p>
-                  </div>
+      <Drawer.Backdrop isOpen={state.isOpen} onOpenChange={state.setOpen}>
+        <Drawer.Content placement={isDesktop ? "right" : "bottom"}>
+          <Drawer.Dialog className={isDesktop ? "w-85 rounded-l-2xl p-4" : ""}>
+            <Drawer.Handle />
+            <Drawer.Header>
+              <div className="flex items-center gap-3">
+                <Image
+                  alt={user?.name ?? "User"}
+                  src={
+                    user?.avatarSrc ??
+                    `https://avatar.vercel.sh/vercel.svg?text=${user?.name?.slice(0, 1).toUpperCase()}`
+                  }
+                  width={40}
+                  height={40}
+                  className="rounded-full"
+                />
+                <div className="flex flex-col">
+                  <p className="text-sm font-medium">
+                    {user?.name ?? "Sarah Johnson"}
+                  </p>
                 </div>
-              </Drawer.Header>
-              <Drawer.Body>
-                <ListBox
-                  aria-label="User navigation"
-                  className="w-full"
-                  selectionMode="none"
-                >
-                  {menuItems.map((item) => (
-                    <ListBox.Item
-                      key={item.id}
-                      id={item.id}
-                      textValue={item.label}
-                    >
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-default">
-                        <Icon
-                          icon={item.icon}
-                          width={18}
-                          height={18}
-                          className="text-foreground"
-                        />
-                      </div>
-                      <div className="flex flex-col">
-                        <Label>{item.label}</Label>
-                        <Description>{item.description}</Description>
-                      </div>
+              </div>
+            </Drawer.Header>
+            <Drawer.Body>
+              <ListBox
+                aria-label="User navigation"
+                className="w-full"
+                selectionMode="none"
+              >
+                {menuItems.map((item) => (
+                  <ListBox.Item
+                    key={item.id}
+                    id={item.id}
+                    textValue={item.label}
+                  >
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-default">
                       <Icon
-                        icon="solar:alt-arrow-right-linear"
-                        width={16}
-                        height={16}
-                        className="ms-auto text-muted"
+                        icon={item.icon}
+                        width={18}
+                        height={18}
+                        className="text-foreground"
                       />
-                    </ListBox.Item>
-                  ))}
-                </ListBox>
-              </Drawer.Body>
-              <Drawer.Footer>
-                <Button
-                  slot="close"
-                  variant="danger"
-                  fullWidth
-                  onPress={logout}
-                >
-                  <Icon icon="solar:logout-2-linear" width={18} height={18} />
-                  Logout
-                </Button>
-              </Drawer.Footer>
-            </Drawer.Dialog>
-          </Drawer.Content>
-        </Drawer.Backdrop>
-      </Drawer>
+                    </div>
+                    <div className="flex flex-col">
+                      <Label>{item.label}</Label>
+                      <Description>{item.description}</Description>
+                    </div>
+                    <Icon
+                      icon="solar:alt-arrow-right-linear"
+                      width={16}
+                      height={16}
+                      className="ms-auto text-muted"
+                    />
+                  </ListBox.Item>
+                ))}
+              </ListBox>
+            </Drawer.Body>
+            <Drawer.Footer>
+              <Button
+                fullWidth
+                isDisabled={isSigningOut}
+                slot="close"
+                variant="danger"
+                onPress={handleSignOut}
+              >
+                <Icon icon="solar:logout-2-linear" width={18} height={18} />
+                {isSigningOut ? "Logging out..." : "Logout"}
+              </Button>
+            </Drawer.Footer>
+          </Drawer.Dialog>
+        </Drawer.Content>
+      </Drawer.Backdrop>
     </>
   );
 }

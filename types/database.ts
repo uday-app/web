@@ -22,6 +22,10 @@ export interface Database {
         };
         Returns: UserRow;
       };
+      get_current_user_session: {
+        Args: Record<string, never>;
+        Returns: unknown;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

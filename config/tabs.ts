@@ -1,24 +1,25 @@
 "use client";
+import { IconMoneyBill, IconNut, IconShopping } from "nucleo-glass";
 
 export const tabConfigs = [
   {
     key: "actions",
     title: "Actions",
-    icon: "lucide:command",
+    icon: IconNut,
     shouldFilter: true,
     visible: () => true,
   },
   {
     key: "orders",
     title: "Orders",
-    icon: "lucide:shopping-bag",
+    icon: IconShopping,
     shouldFilter: false,
     visible: (user: unknown) => !!user,
   },
   {
     key: "transactions",
     title: "Transactions",
-    icon: "lucide:arrow-left-right",
+    icon: IconMoneyBill,
     shouldFilter: false,
     visible: (user: unknown) => !!user,
   },

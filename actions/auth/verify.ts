@@ -5,19 +5,16 @@ import { revalidatePath } from "next/cache";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 
 import { createClient } from "@/supabase/server";
-
-type VerifiedUser = {
-  auth_id: string | null;
-  avatar_url: string | null;
-  id: string;
-  name: string | null;
-  phone: string;
-};
+import {
+  type SessionUser,
+  toCurrentUserSession,
+} from "@/actions/auth/session-contract";
 
 type VerifyOtpResult = {
   editNumber?: boolean;
   error?: string;
-  user?: VerifiedUser;
+  needsDetails?: boolean;
+  user?: SessionUser;
 };
 
 export async function verifyOtp(
@@ -60,22 +57,35 @@ export async function verifyOtp(
     };
   }
 
-  const { data: user, error: userError } = await supabase
-    .from("users")
-    .select("id, auth_id, name, phone, avatar_url")
-    .eq("auth_id", data.user.id)
-    .maybeSingle();
+  const { data: sessionData, error: sessionError } = await supabase.rpc(
+    "get_current_user_session",
+  );
 
-  if (userError) {
+  if (sessionError) {
     return {
-      error: userError.message,
+      error: sessionError.message,
+    };
+  }
+
+  const session = toCurrentUserSession(sessionData);
+
+  if (session.error) {
+    return {
+      error: session.error,
     };
   }
 
   revalidatePath("/", "layout");
   revalidatePath("/login");
 
+  if (!session.profileComplete) {
+    return {
+      needsDetails: true,
+      user: session.user ?? undefined,
+    };
+  }
+
   return {
-    user: user ?? undefined,
+    user: session.user ?? undefined,
   };
 }

@@ -2,29 +2,33 @@
 
 import {
   Button,
-  Description,
-  FieldError,
+  DateField,
   Form,
   Input,
+  InputGroup,
   Label,
   ListBox,
   Select,
   TextField,
 } from "@heroui/react";
-import { Icon } from "@iconify/react";
+import {
+  getLocalTimeZone,
+  parseDate,
+  today,
+  type DateValue,
+} from "@internationalized/date";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { I18nProvider } from "react-aria-components";
 import { useShallow } from "zustand/react/shallow";
 
 import { createUserProfile } from "@/actions/auth/create";
+import { getPinCode } from "@/actions/pincode";
 import { useAuthStore } from "@/store/auth";
 import { useLoginStore } from "@/store/login";
-import {
-  USER_GENDERS,
-  type UserGender,
-} from "@/types/user";
-
-import { LoginTitle } from "../title";
+import { USER_GENDERS, type UserGender } from "@/types/user";
+import { Loader } from "@/ui/loader";
+import { IconBulletList } from "nucleo-glass";
 
 const genderLabels: Record<UserGender, string> = {
   male: "Male",
@@ -38,58 +42,133 @@ function getPhoneNumberValue(phone: string) {
   return Number(digits || "0");
 }
 
+function getDateFieldValue(value: string): DateValue | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return null;
+  }
+
+  try {
+    return parseDate(value);
+  } catch {
+    return null;
+  }
+}
+
 export function StepDetails() {
   const router = useRouter();
-  const { closeLogin, setStep, updateAddressField, updateField, values } =
-    useLoginStore(
-      useShallow((state) => ({
-        closeLogin: state.closeLogin,
-        setStep: state.setStep,
-        updateAddressField: state.updateAddressField,
-        updateField: state.updateField,
-        values: state.values,
-      })),
-    );
+  const { closeLogin, updateAddressField, updateField, values } = useLoginStore(
+    useShallow((state) => ({
+      closeLogin: state.closeLogin,
+      updateAddressField: state.updateAddressField,
+      updateField: state.updateField,
+      values: state.values,
+    })),
+  );
   const login = useAuthStore((state) => state.login);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLookingUpPincode, setIsLookingUpPincode] = useState(false);
+  const [pincodeLookupError, setPincodeLookupError] = useState<string | null>(
+    null,
+  );
   const [showErrors, setShowErrors] = useState(false);
+  const dateOfBirthValue = getDateFieldValue(values.date_of_birth);
+  const maxDateOfBirth = today(getLocalTimeZone());
+  const pincode = String(values.address.pincode ?? "").replace(/\D/g, "");
 
   const nameError =
-    values.name.trim().length > 0 && values.name.trim().length < 3
+    values.name.trim().length === 0
       ? "Enter your full name."
-      : null;
+      : values.name.trim().length < 3
+        ? "Enter your full name."
+        : null;
   const dobError = values.date_of_birth ? null : "Select your date of birth.";
   const genderError = values.gender ? null : "Choose a gender.";
   const cityError =
-    values.address.city.trim().length > 0 &&
-    values.address.city.trim().length < 2
-      ? "Enter a valid city."
-      : null;
+    values.address.city.trim().length === 0
+      ? "Enter your city."
+      : values.address.city.trim().length < 2
+        ? "Enter a valid city."
+        : null;
+  const pincodeError =
+    pincode.length === 0
+      ? "Enter your 6-digit pincode."
+      : pincode.length !== 6
+        ? "Enter a valid 6-digit pincode."
+        : pincodeLookupError;
   const districtError =
-    values.address.district.trim().length > 0 &&
-    values.address.district.trim().length < 2
-      ? "Enter a valid district."
+    pincode.length === 6 && !values.address.district.trim()
+      ? "District will be filled from pincode."
       : null;
   const stateError =
-    values.address.state.trim().length > 0 &&
-    values.address.state.trim().length < 2
-      ? "Enter a valid state."
-      : null;
-  const countryError =
-    values.address.country.trim().length > 0 &&
-    values.address.country.trim().length < 2
-      ? "Enter a valid country."
+    pincode.length === 6 && !values.address.state.trim()
+      ? "State will be filled from pincode."
       : null;
 
+  const validationIssues = [
+    nameError,
+    dobError,
+    genderError,
+    pincodeError,
+    cityError,
+    districtError,
+    stateError,
+  ].filter((issue): issue is string => Boolean(issue));
+
+  const shouldShowIssueSummary =
+    Boolean(error) || (showErrors && validationIssues.length > 0);
+
+  useEffect(() => {
+    if (pincode.length !== 6) {
+      return;
+    }
+
+    let isCurrent = true;
+    const timer = window.setTimeout(() => {
+      setIsLookingUpPincode(true);
+      setPincodeLookupError(null);
+
+      void getPinCode(pincode)
+        .then((result) => {
+          if (!isCurrent) {
+            return;
+          }
+
+          setIsLookingUpPincode(false);
+
+          if (!result) {
+            setPincodeLookupError(
+              "Could not find district and state for this pincode.",
+            );
+            return;
+          }
+
+          setPincodeLookupError(null);
+          updateAddressField("district", result.district);
+          updateAddressField("state", result.state);
+        })
+        .catch(() => {
+          if (!isCurrent) {
+            return;
+          }
+
+          setIsLookingUpPincode(false);
+          setPincodeLookupError(
+            "Could not find district and state for this pincode.",
+          );
+        });
+    }, 300);
+
+    return () => {
+      isCurrent = false;
+      window.clearTimeout(timer);
+    };
+  }, [pincode, updateAddressField]);
+
   const canSubmit =
-    values.name.trim().length >= 3 &&
-    Boolean(values.date_of_birth) &&
-    Boolean(values.gender) &&
-    values.address.city.trim().length >= 2 &&
-    values.address.district.trim().length >= 2 &&
-    values.address.state.trim().length >= 2 &&
-    values.address.country.trim().length >= 2;
+    validationIssues.length === 0 &&
+    !isLookingUpPincode &&
+    Boolean(values.gender);
 
   function goBackOrHome() {
     if (window.history.length > 1) {
@@ -119,7 +198,7 @@ export function StepDetails() {
         const result = await createUserProfile({
           address: {
             city: values.address.city.trim(),
-            country: values.address.country.trim(),
+            country: "India",
             district: values.address.district.trim(),
             pincode: String(values.address.pincode ?? "").trim(),
             state: values.address.state.trim(),
@@ -146,197 +225,200 @@ export function StepDetails() {
         goBackOrHome();
       }}
     >
-      <LoginTitle
-        description="Complete the basic profile details required for your account."
-        icon="fa7-solid:user-pen"
-        title="Account details"
-      />
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <TextField
-          isInvalid={showErrors && Boolean(nameError)}
-          isRequired
-          name="name"
-          onChange={(value) => {
-            if (error) {
-              setError(null);
-            }
-
-            updateField("name", value);
-          }}
-          value={values.name}
-        >
-          <Label>Full name</Label>
-          <Input placeholder="Aarav Sharma" variant="secondary" />
-          {nameError ? (
-            <FieldError>{nameError}</FieldError>
-          ) : (
-            <Description>Use your full name.</Description>
-          )}
-        </TextField>
-
-        <TextField
-          isInvalid={showErrors && Boolean(dobError)}
-          isRequired
-          name="dateOfBirth"
-          onChange={(value) => {
-            if (error) {
-              setError(null);
-            }
-
-            updateField("date_of_birth", value);
-          }}
-          value={values.date_of_birth}
-        >
-          <Label>Date of birth</Label>
-          <Input type="date" variant="secondary" />
-          {showErrors && dobError ? <FieldError>{dobError}</FieldError> : null}
-        </TextField>
-
-        <div className="space-y-2">
-          <Select
-            isInvalid={showErrors && Boolean(genderError)}
+       <div className="space-y-0.5">
+        <h1 className="flex items-center gap-1.5 text-xl font-bold text-foreground"> <IconBulletList /> Account details</h1>
+        <p className="text-xs text-muted">Complete the basic profile details required for your account.</p>
+      </div> 
+      <div className="space-y-5">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TextField
+            aria-label="Full name"
+            className="sm:col-span-2"
+            isInvalid={showErrors && Boolean(nameError)}
             isRequired
-            selectedKey={values.gender ?? null}
-            variant="secondary"
-            onSelectionChange={(key) =>
-              updateField("gender", key ? (String(key) as UserGender) : null)
-            }
+            name="name"
+            onChange={(value) => {
+              if (error) {
+                setError(null);
+              }
+
+              updateField("name", value);
+            }}
+            value={values.name}
           >
-            <Label>Gender</Label>
-            <Select.Trigger>
-              <Select.Value>
-                {({ selectedText }) => selectedText || "Select gender"}
-              </Select.Value>
-              <Select.Indicator />
-            </Select.Trigger>
-            <Select.Popover>
-              <ListBox aria-label="Gender options">
-                {USER_GENDERS.map((gender) => (
-                  <ListBox.Item
-                    id={gender}
-                    key={gender}
-                    textValue={genderLabels[gender]}
-                  >
-                    {genderLabels[gender]}
-                  </ListBox.Item>
-                ))}
-              </ListBox>
-            </Select.Popover>
-          </Select>
-          {showErrors && genderError ? (
-            <p className="text-sm text-danger">{genderError}</p>
-          ) : null}
+            <Label>Full name</Label>
+            <Input placeholder="Rock Star" variant="secondary" />
+          </TextField>
+
+          <I18nProvider locale="en-GB">
+            <DateField
+              aria-label="Date of birth"
+              isInvalid={showErrors && Boolean(dobError)}
+              isRequired
+              maxValue={maxDateOfBirth}
+              name="dateOfBirth"
+              shouldForceLeadingZeros
+              value={dateOfBirthValue}
+              onChange={(value) => {
+                if (error) {
+                  setError(null);
+                }
+
+                updateField("date_of_birth", value?.toString() ?? "");
+              }}
+            >
+              <Label>Date of birth</Label>
+              <DateField.Group fullWidth variant="secondary">
+                <DateField.Input>
+                  {(segment) => <DateField.Segment segment={segment} />}
+                </DateField.Input>
+              </DateField.Group>
+            </DateField>
+          </I18nProvider>
+
+          <div className="space-y-2">
+            <Select
+              aria-label="Gender"
+              isInvalid={showErrors && Boolean(genderError)}
+              isRequired
+              selectedKey={values.gender ?? null}
+              variant="secondary"
+              onSelectionChange={(key) =>
+                updateField("gender", key ? (String(key) as UserGender) : null)
+              }
+            >
+              <Label>Gender</Label>
+              <Select.Trigger>
+                <Select.Value>
+                  {({ selectedText }) => selectedText || "Select gender"}
+                </Select.Value>
+                <Select.Indicator />
+              </Select.Trigger>
+              <Select.Popover>
+                <ListBox aria-label="Gender options">
+                  {USER_GENDERS.map((gender) => (
+                    <ListBox.Item
+                      id={gender}
+                      key={gender}
+                      textValue={genderLabels[gender]}
+                    >
+                      {genderLabels[gender]}
+                    </ListBox.Item>
+                  ))}
+                </ListBox>
+              </Select.Popover>
+            </Select>
+          </div>
         </div>
 
-        <TextField
-          isInvalid={showErrors && Boolean(cityError)}
-          isRequired
-          name="city"
-          onChange={(value) => {
-            if (error) {
-              setError(null);
-            }
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TextField
+            aria-label="Pincode"
+            isInvalid={showErrors && Boolean(pincodeError)}
+            isRequired
+            name="pincode"
+            onChange={(value) => {
+              if (error) {
+                setError(null);
+              }
 
-            updateAddressField("city", value);
-          }}
-          value={values.address.city}
-        >
-          <Label>City</Label>
-          <Input placeholder="Indore" variant="secondary" />
-          {cityError ? <FieldError>{cityError}</FieldError> : null}
-        </TextField>
+              setPincodeLookupError(null);
+              setIsLookingUpPincode(false);
+              updateAddressField("district", "");
+              updateAddressField("state", "");
+              updateAddressField(
+                "pincode",
+                value.replace(/\D/g, "").slice(0, 6),
+              );
+            }}
+            value={String(values.address.pincode ?? "")}
+          >
+            <Label>Pincode</Label>
+            <InputGroup variant="secondary">
+              <InputGroup.Input
+                className="w-full"
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="203205"
+              />
 
-        <TextField
-          isInvalid={showErrors && Boolean(districtError)}
-          isRequired
-          name="district"
-          onChange={(value) => {
-            if (error) {
-              setError(null);
-            }
+              <InputGroup.Suffix>
+                {isLookingUpPincode && <Loader />}
+              </InputGroup.Suffix>
+            </InputGroup>
+          </TextField>
 
-            updateAddressField("district", value);
-          }}
-          value={values.address.district}
-        >
-          <Label>District</Label>
-          <Input placeholder="Indore" variant="secondary" />
-          {districtError ? <FieldError>{districtError}</FieldError> : null}
-        </TextField>
+          <TextField
+            aria-label="City"
+            isInvalid={showErrors && Boolean(cityError)}
+            isRequired
+            name="city"
+            onChange={(value) => {
+              if (error) {
+                setError(null);
+              }
 
-        <TextField
-          isInvalid={showErrors && Boolean(stateError)}
-          isRequired
-          name="state"
-          onChange={(value) => {
-            if (error) {
-              setError(null);
-            }
+              updateAddressField("city", value);
+            }}
+            value={values.address.city}
+          >
+            <Label>City</Label>
+            <Input placeholder="Sikandrabad" variant="secondary" />
+          </TextField>
 
-            updateAddressField("state", value);
-          }}
-          value={values.address.state}
-        >
-          <Label>State</Label>
-          <Input placeholder="Madhya Pradesh" variant="secondary" />
-          {stateError ? <FieldError>{stateError}</FieldError> : null}
-        </TextField>
+          <TextField
+            aria-label="District"
+            isInvalid={showErrors && Boolean(districtError)}
+            isRequired
+            isReadOnly
+            name="district"
+            value={values.address.district}
+          >
+            <Label>District</Label>
+            <Input placeholder="Bulandshahr" variant="secondary" />
+          </TextField>
 
-        <TextField
-          isInvalid={showErrors && Boolean(countryError)}
-          isRequired
-          name="country"
-          onChange={(value) => {
-            if (error) {
-              setError(null);
-            }
-
-            updateAddressField("country", value);
-          }}
-          value={values.address.country}
-        >
-          <Label>Country</Label>
-          <Input placeholder="India" variant="secondary" />
-          {countryError ? <FieldError>{countryError}</FieldError> : null}
-        </TextField>
-
-        <TextField
-          className="sm:col-span-2"
-          name="pincode"
-          onChange={(value) => {
-            if (error) {
-              setError(null);
-            }
-
-            updateAddressField("pincode", value.replace(/\D/g, ""));
-          }}
-          value={String(values.address.pincode ?? "")}
-        >
-          <Label>Pincode</Label>
-          <Input inputMode="numeric" placeholder="452001" variant="secondary" />
-          <Description>
-            Optional, but useful for delivery and billing defaults.
-          </Description>
-        </TextField>
+          <TextField
+            aria-label="State"
+            isInvalid={showErrors && Boolean(stateError)}
+            isRequired
+            isReadOnly
+            name="state"
+            value={values.address.state}
+          >
+            <Label>State</Label>
+            <Input placeholder="Uttar Pradesh" variant="secondary" />
+          </TextField>
+        </div>
       </div>
 
-      {error ? <p className="text-sm text-danger">{error}</p> : null}
+      <Button
+        fullWidth
+        isDisabled={isSubmitting || isLookingUpPincode}
+        type="submit"
+      >
+        {isSubmitting ? (
+          <>
+            <Loader />
+            Creating account . . .
+          </>
+        ) : (
+          "Create account"
+        )}
+      </Button>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Button
-          fullWidth
-          type="button"
-          variant="secondary"
-          onPress={() => setStep("otp")}
-        >
-          Back to verification
-        </Button>
-        <Button fullWidth isDisabled={isSubmitting || !canSubmit} type="submit">
-          <Icon className="size-5" icon="solar:user-check-linear" />
-          {isSubmitting ? "Creating account..." : "Finish sign in"}
-        </Button>
-      </div>
+      {shouldShowIssueSummary ? (
+        <div className="rounded-md border border-danger/35 bg-danger/8 p-3 text-sm text-danger">
+          {error ? <p>{error}</p> : null}
+          {validationIssues.length > 0 ? (
+            <ul className="list-disc space-y-1 ps-5">
+              {validationIssues.map((issue) => (
+                <li key={issue}>{issue}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
     </Form>
   );
 }

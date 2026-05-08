@@ -2,8 +2,12 @@
 
 import { useEffect, useState } from "react";
 
-import { Button, Form, InputOTP, REGEXP_ONLY_DIGITS } from "@heroui/react";
-import { Icon } from "@iconify/react";
+import {
+  Button,
+  Form,
+  InputOTP,
+  REGEXP_ONLY_DIGITS,
+} from "@heroui/react";
 import { useRouter } from "next/navigation";
 import { useShallow } from "zustand/react/shallow";
 
@@ -11,21 +15,11 @@ import { sendOtp } from "@/actions/auth/otp";
 import { verifyOtp } from "@/actions/auth/verify";
 import { useAuthStore } from "@/store/auth";
 import { useLoginStore } from "@/store/login";
-
-import { LoginTitle } from "../title";
+import { Loader } from "@/ui/loader";
+import { IconGearKeyhole } from "nucleo-glass";
 
 const OTP_LENGTH = 6;
 const OTP_TTL_SECONDS = 60;
-
-function maskPhone(value: string) {
-  const digits = value.replace(/\D/g, "");
-
-  if (digits.length < 4) {
-    return value || "your number";
-  }
-
-  return `+91 ****** ${digits.slice(-4)}`;
-}
 
 function formatCountdown(seconds: number) {
   const minutes = Math.floor(seconds / 60)
@@ -42,15 +36,17 @@ function toAuthPhone(value: string) {
 
 export function StepOtp() {
   const router = useRouter();
-  const { closeLogin, otp, phone, setStep, updateField } = useLoginStore(
-    useShallow((state) => ({
-      closeLogin: state.closeLogin,
-      otp: state.values.otp,
-      phone: state.values.phone,
-      setStep: state.setStep,
-      updateField: state.updateField,
-    })),
-  );
+  const { closeLogin, hydrateFromUser, otp, phone, setStep, updateField } =
+    useLoginStore(
+      useShallow((state) => ({
+        closeLogin: state.closeLogin,
+        hydrateFromUser: state.hydrateFromUser,
+        otp: state.values.otp,
+        phone: state.values.phone,
+        setStep: state.setStep,
+        updateField: state.updateField,
+      })),
+    );
   const login = useAuthStore((state) => state.login);
   const [error, setError] = useState<string | null>(null);
   const [isResending, setIsResending] = useState(false);
@@ -103,6 +99,13 @@ export function StepOtp() {
       return;
     }
 
+    if (res.needsDetails) {
+      hydrateFromUser(res.user);
+      updateField("otp", "");
+      setStep("details");
+      return;
+    }
+
     if (res.user) {
       login({
         avatarSrc: res.user.avatar_url,
@@ -142,7 +145,7 @@ export function StepOtp() {
   return (
     <Form
       aria-label="Verification code"
-      className="flex flex-col gap-5"
+      className="flex flex-col gap-2"
       onSubmit={async (event) => {
         event.preventDefault();
 
@@ -151,85 +154,85 @@ export function StepOtp() {
         }
       }}
     >
-      <LoginTitle
-        description={`We sent a 6-digit verification code to ${maskPhone(phone)}.`}
-        icon="tabler:password-mobile-phone"
-        title="Verify code"
-      />
+       <div className="space-y-0.5">
+        <h1 className="flex items-center gap-1.5 text-xl font-bold text-foreground"> <IconGearKeyhole /> Verify code</h1>
+        <p className="text-xs text-muted">Sent to {phone} <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                updateField("otp", "");
+                setStep("phone");
+              }}
+            >
+              Edit
+            </button></p>
+      </div> 
 
-      <div className="space-y-4">
-        <InputOTP
-          aria-label="Enter verification code"
-          className="mx-auto"
-          maxLength={OTP_LENGTH}
-          onChange={(value) => {
-            const nextOtp = value.replace(/\D/g, "").slice(0, OTP_LENGTH);
+      <InputOTP
+        autoFocus
+        aria-label="Enter verification code"
+        className="justify-center overflow-hidden p-2"
+        maxLength={OTP_LENGTH}
+        onChange={(value) => {
+          const nextOtp = value.replace(/\D/g, "").slice(0, OTP_LENGTH);
 
-            if (error) {
-              setError(null);
-            }
-
-            updateField("otp", nextOtp);
-
-            if (nextOtp.length === OTP_LENGTH) {
-              void handleVerify(nextOtp);
-            }
-          }}
-          pattern={REGEXP_ONLY_DIGITS}
-          value={otp}
-          variant="secondary"
-        >
-          <InputOTP.Group>
-            <InputOTP.Slot index={0} />
-            <InputOTP.Slot index={1} />
-            <InputOTP.Slot index={2} />
-          </InputOTP.Group>
-          <InputOTP.Separator />
-          <InputOTP.Group>
-            <InputOTP.Slot index={3} />
-            <InputOTP.Slot index={4} />
-            <InputOTP.Slot index={5} />
-          </InputOTP.Group>
-        </InputOTP>
-
-        <div className="flex items-center justify-between gap-3 text-sm text-foreground/62">
-          <p>OTP expires in {formatCountdown(secondsLeft)}</p>
-          <Button
-            isDisabled={secondsLeft > 0 || isResending || isVerifying}
-            size="sm"
-            type="button"
-            variant="ghost"
-            onPress={handleResendOtp}
-          >
-            {isResending ? "Sending..." : "Resend OTP"}
-          </Button>
-        </div>
-      </div>
-
-      {error ? <p className="text-sm text-danger">{error}</p> : null}
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Button
-          fullWidth
-          type="button"
-          variant="secondary"
-          onPress={() => {
+          if (error) {
             setError(null);
-            updateField("otp", "");
-            setStep("phone");
-          }}
-        >
-          Edit number
-        </Button>
+          }
+
+          updateField("otp", nextOtp);
+
+          if (nextOtp.length === OTP_LENGTH) {
+            void handleVerify(nextOtp);
+          }
+        }}
+        pattern={REGEXP_ONLY_DIGITS}
+        value={otp}
+        variant="secondary"
+      >
+        <InputOTP.Group>
+          <InputOTP.Slot index={0} />
+          <InputOTP.Slot index={1} />
+          <InputOTP.Slot index={2} />
+        </InputOTP.Group>
+        <InputOTP.Separator />
+        <InputOTP.Group>
+          <InputOTP.Slot index={3} />
+          <InputOTP.Slot index={4} />
+          <InputOTP.Slot index={5} />
+        </InputOTP.Group>
+      </InputOTP>
+
+      <div className="flex items-center justify-between gap-3 text-sm text-foreground/62">
+        <p className="text-foreground">{formatCountdown(secondsLeft)}</p>
         <Button
-          fullWidth
-          isDisabled={isVerifying || otp.length !== OTP_LENGTH}
-          type="submit"
+          isDisabled={secondsLeft > 0 || isResending || isVerifying}
+          size="sm"
+          type="button"
+          variant="ghost"
+          onPress={handleResendOtp}
         >
-          <Icon className="size-5" icon="solar:shield-check-linear" />
-          {isVerifying ? "Verifying..." : "Verify OTP"}
+          {isResending ? "Sending . . ." : "Resend OTP"}
         </Button>
       </div>
+
+      <Button
+        fullWidth
+        isDisabled={isVerifying || otp.length !== OTP_LENGTH}
+        type="submit"
+      >
+        {isVerifying ? (
+          <>
+            <Loader />
+            Verifying . . .
+          </>
+        ) : (
+          "Verify OTP"
+        )}
+      </Button>
+      {error ? (
+        <p className="text-sm text-danger text-center">{error}</p>
+      ) : null}
     </Form>
   );
 }

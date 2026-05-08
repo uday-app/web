@@ -14,7 +14,7 @@ export function LoginStepFlow({ surface }: LoginSurface) {
 
   if (surface === "page") {
     return (
-      <Card className="min-w-sm">
+      <Card className="w-sm">
         {step === "phone" ? <StepPhone /> : null}
         {step === "otp" ? <StepOtp /> : null}
         {step === "details" ? <StepDetails /> : null}

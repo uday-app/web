@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import {
   Button,
+  Checkbox,
   Description,
   FieldError,
   Form,
@@ -16,7 +17,8 @@ import { useShallow } from "zustand/react/shallow";
 import { sendOtp } from "@/actions/auth/otp";
 import { useLoginStore } from "@/store/login";
 
-import { LoginTitle } from "../title";
+import { Loader } from "@/ui/loader";
+import { IconUser } from "nucleo-glass";
 
 export function StepPhone() {
   const {
@@ -77,13 +79,12 @@ export function StepPhone() {
         }
       }}
     >
-      <LoginTitle
-        description="Login to your account - enjoy exclusive features and many more."
-        icon="solar:user-bold-duotone"
-        title="User Login"
-      />
-
+      <div className="space-y-0.5">
+        <h1 className="flex items-center gap-1.5 text-xl font-bold text-foreground"> <IconUser /> User Login</h1>
+        <p className="text-xs text-muted">Login to your account - enjoy exclusive features and many more.</p>
+      </div>
       <TextField
+        aria-label="Phone"
         isInvalid={showPhoneError && Boolean(phoneError)}
         isRequired
         name="phone"
@@ -116,17 +117,27 @@ export function StepPhone() {
       </TextField>
 
       {otpError ? <p className="text-sm text-danger">{otpError}</p> : null}
-
+      <Checkbox defaultSelected id="terms" className="mx-auto">
+        <Checkbox.Control>
+          <Checkbox.Indicator />
+        </Checkbox.Control>
+        <Checkbox.Content className="flex-row gap-1">
+          <p className="text-xs text-center">I agree to</p>
+          <Link className="text-muted text-xs" href="/terms" target="_blank">
+            Terms & Conditions
+          </Link>
+        </Checkbox.Content>
+      </Checkbox>
       <Button fullWidth isDisabled={isSubmitDisabled} type="submit">
-        {isSendingOtp ? "Sending OTP..." : "Send OTP"}
+        {isSendingOtp ? (
+          <>
+            <Loader />
+            Sending OTP . . .
+          </>
+        ) : (
+          "Send OTP"
+        )}
       </Button>
-      <Link
-        className="text-muted text-center text-xs"
-        href="/terms"
-        target="_blank"
-      >
-        Terms & Conditions
-      </Link>
     </Form>
   );
 }

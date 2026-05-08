@@ -19,7 +19,7 @@ export function ModalDrawer({ children }: { children: ReactNode }) {
         <Modal.Container>
           <Modal.Dialog aria-label="Login with phone" className="p-4">
             <Modal.CloseTrigger />
-            <Modal.Body className="overflow-hidden p-2">{children}</Modal.Body>
+            <Modal.Body className="p-2">{children}</Modal.Body>
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>
@@ -29,7 +29,7 @@ export function ModalDrawer({ children }: { children: ReactNode }) {
   return (
     <Drawer.Backdrop isOpen onOpenChange={handleOpenChange}>
       <Drawer.Content placement="bottom">
-        <Drawer.Dialog aria-label="Login with phone">
+        <Drawer.Dialog aria-label="Login with phone" className="max-h-[90%]">
           <Drawer.Handle />
           <Drawer.Body>{children}</Drawer.Body>
         </Drawer.Dialog>

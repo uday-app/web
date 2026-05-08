@@ -2,6 +2,8 @@
 
 import { ThemeProvider } from "next-themes";
 
+import { AuthSync } from "@/ui/auth/session-sync";
+
 export function Provider({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider
@@ -11,6 +13,7 @@ export function Provider({ children }: { children: React.ReactNode }) {
       attribute="class"
       defaultTheme="system"
     >
+      <AuthSync />
       {children}
     </ThemeProvider>
   );

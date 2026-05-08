@@ -1,11 +1,12 @@
 "use client";
 
+import Icon from "@/utils/iconify";
 import { cn } from "@heroui/react";
-import { Icon } from "@iconify/react";
+import type { ReactNode } from "react";
 
 type LoginTitleProps = {
   title?: string;
-  description?: string;
+  description?: ReactNode;
   icon?: string;
   className?: string;
   titleClassName?: string;
@@ -21,7 +22,7 @@ export function LoginTitle({
   descriptionClassName,
 }: LoginTitleProps) {
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("space-y-2", className)}>
       <h1
         className={cn(
           "flex items-center gap-1.5 text-xl font-bold text-foreground",

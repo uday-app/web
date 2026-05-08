@@ -1,9 +1,9 @@
-'use client'
+"use client";
 
 import { useSearchStore } from "@/store/search";
 import { Navigations } from "@/types/navigation";
+import Icon from "@/utils/iconify";
 import { cn } from "@heroui/react";
-import { Icon } from "@iconify/react";
 import { Command } from "cmdk";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
@@ -30,7 +30,7 @@ export function QuickActions({
               onSelect={() => onSelect(action, router, setTheme)}
               value={action.title}
             >
-              <Icon icon={action.icon} width={18} />
+              <Icon icon={action.icon} width={18} height={18} />
               <span>{action.title}</span>
             </CommandItem>
           ))}

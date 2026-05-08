@@ -1,13 +1,11 @@
 "use client";
 
 import {
-  CloseButton,
+  Button,
+  cn,
   Drawer,
-  InputGroup,
   Modal,
   ScrollShadow,
-  SearchField,
-  TextField,
   useMediaQuery,
 } from "@heroui/react";
 import { type ReactNode } from "react";
@@ -21,6 +19,9 @@ import { UserMenu } from "./login";
 import { Orders } from "./orders";
 import { QuickActions } from "./quick";
 import { CommandTabs } from "./tabs";
+import { IconCircleArrowLeft, IconDeleteX, IconMagnifier } from "nucleo-glass";
+import { useAuthStore } from "@/store/auth";
+import { useShallow } from "zustand/shallow";
 
 export function SearchBar() {
   const { setTheme } = useTheme();
@@ -38,8 +39,8 @@ export function SearchBar() {
       shouldFilter={shouldFilter}
     >
       {!isOpen && (
-        <SearchInput
-          className="fixed bottom-2 left-1/2 z-50 w-[95%] -translate-x-1/2 md:w-160"
+        <CommandInput
+          className="fixed bottom-2 left-1/2 z-50 w-[95%] -translate-x-1/2 md:w-160 bg-field shadow-field dark:bg-[#1C1C1E]/75 supports-backdrop-filter:backdrop-blur-xs supports-backdrop-filter:backdrop-saturate-150 rounded-field"
           onActivate={onOpen}
           onChange={setQuery}
           value={query}
@@ -58,7 +59,7 @@ export function SearchBar() {
             </Command.List>
           </ScrollShadow>
         }
-        header={<SearchInput onChange={setQuery} value={query} />}
+        header={<CommandInput onChange={setQuery} value={query} />}
         footer={<CommandTabs />}
       />
     </Command>
@@ -83,18 +84,27 @@ function ModalDrawer({ header, body, footer }: ModalDrawerProps) {
 
     onClose();
   };
+  const { user } = useAuthStore(
+    useShallow((auth) => ({
+      user: auth.user,
+    })),
+  );
 
   if (isDesktop) {
     return (
       <Modal.Backdrop isOpen={isOpen} onOpenChange={handleOpenChange}>
-        <Modal.Container>
+        <Modal.Container className="p-1">
           <Modal.Dialog
             aria-label="Search Modal"
-            className="h-[60dvh] max-h-[calc(100%-10px)] max-w-160 p-2.5"
+            className="h-[60dvh] max-w-160 p-0"
           >
-            <Modal.Header>{header}</Modal.Header>
-            <Modal.Body>{body}</Modal.Body>
-            <Modal.Footer className="mt-0">{footer}</Modal.Footer>
+            <Modal.Header className="p-1 border-b">{header}</Modal.Header>
+            <Modal.Body className="px-2">{body}</Modal.Body>
+            {user && (
+              <Modal.Footer className="mt-0 p-1 border-t">
+                {footer}
+              </Modal.Footer>
+            )}
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>
@@ -104,62 +114,95 @@ function ModalDrawer({ header, body, footer }: ModalDrawerProps) {
   return (
     <Drawer.Backdrop isOpen={isOpen} onOpenChange={handleOpenChange}>
       <Drawer.Content placement="bottom">
-        <Drawer.Dialog aria-label="Search Drawer" className="h-[60dvh] p-2.5">
+        <Drawer.Dialog aria-label="Search Drawer" className="h-[70%] p-0">
           <Drawer.Handle />
-          <Drawer.Header>{header}</Drawer.Header>
-          <Drawer.Body>{body}</Drawer.Body>
-          <Drawer.Footer className="mt-0">{footer}</Drawer.Footer>
+          <Drawer.Header className="p-1 border-b">{header}</Drawer.Header>
+          <Drawer.Body className="px-2">{body}</Drawer.Body>
+          {user && (
+            <Drawer.Footer className="mt-0 p-1 border-t">
+              {footer}
+            </Drawer.Footer>
+          )}
         </Drawer.Dialog>
       </Drawer.Content>
     </Drawer.Backdrop>
   );
 }
 
-type SearchInputProps = {
+type CommandInputProps = {
   className?: string;
   onActivate?: () => void;
   onChange: (value: string) => void;
   value: string;
 };
 
-function SearchInput({
+function CommandInput({
   className,
   onActivate,
   onChange,
   value,
-}: SearchInputProps) {
+}: CommandInputProps) {
+  const { bounce, page, setPage, setShouldFilter } = useSearchStore();
+
+  const handleBack = () => {
+    bounce();
+    setPage(null);
+    setShouldFilter(true);
+    onChange("");
+  };
   return (
-    <TextField
-      aria-label="Search"
-      className={className}
-      onChange={onChange}
-      value={value}
+    <div
+      className={cn("flex w-full items-center px-1 py-0.5", className)}
+      data-slot="command-input-wrapper"
     >
-      <InputGroup>
-        <InputGroup.Prefix>
-          <SearchField.SearchIcon />
-        </InputGroup.Prefix>
+      <div className="flex flex-1 items-center gap-0.5">
+        <div className="flex items-center gap-2.5">
+          <Button
+            aria-label="Open user menu"
+            isIconOnly
+            size="sm"
+            variant="ghost"
+            onPress={page ? handleBack : undefined}
+          >
+            {page ? (
+              <IconCircleArrowLeft className="size-5.5" />
+            ) : (
+              <IconMagnifier
+                className="size-5.5"
+                style={
+                  {
+                    "--nc-gradient-1-color-1": "#FF7A00",
+                    "--nc-gradient-1-color-2": "#C40000",
+                  } as React.CSSProperties
+                }
+              />
+            )}
+          </Button>
+        </div>
+
         <Command.Input
-          asChild
+          className="placeholder:text-foreground-500 text-medium flex w-full bg-transparent bg-clip-text font-normal outline-hidden placeholder:text-sm disabled:cursor-not-allowed disabled:opacity-50"
+          onClick={onActivate}
+          onFocus={onActivate}
           onValueChange={onChange}
           placeholder="What do you need ?"
           value={value}
         />
-        <InputGroup.Input
-          onClick={onActivate}
-          onFocus={onActivate}
-          placeholder="What do you need ?"
-        />
-        <InputGroup.Suffix className="gap-1">
-          <CloseButton
-            aria-label="Clear search"
-            className={value ? undefined : "invisible"}
-            isDisabled={!value}
-            onPress={() => onChange("")}
-          />
+        <div className="flex items-center gap-0.5">
+          {value && (
+            <Button
+              aria-label="Open user menu"
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              onPress={() => onChange("")}
+            >
+              <IconDeleteX className="size-5.5" />
+            </Button>
+          )}
           <UserMenu />
-        </InputGroup.Suffix>
-      </InputGroup>
-    </TextField>
+        </div>
+      </div>
+    </div>
   );
 }
