@@ -28,7 +28,7 @@ import { useAuthStore } from "@/store/auth";
 import { useLoginStore } from "@/store/login";
 import { USER_GENDERS, type UserGender } from "@/types/user";
 import { Loader } from "@/ui/loader";
-import { IconBulletList } from "nucleo-glass";
+import { IconFeather } from "nucleo-glass";
 
 const genderLabels: Record<UserGender, string> = {
   male: "Male",
@@ -226,7 +226,7 @@ export function StepDetails() {
       }}
     >
        <div className="space-y-0.5">
-        <h1 className="flex items-center gap-1.5 text-xl font-bold text-foreground"> <IconBulletList /> Account details</h1>
+        <h1 className="flex items-center gap-1.5 text-xl font-bold text-foreground"> <IconFeather /> Account details</h1>
         <p className="text-xs text-muted">Complete the basic profile details required for your account.</p>
       </div> 
       <div className="space-y-5">
